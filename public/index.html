@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<script src="main.js" type="module"></script>
+	<style>
+		body {
+			background-color: black;
+			overflow: hidden;
+		}
+
+		canvas {
+			position: absolute;
+			left: 0px;
+			top: 0px;
+		}
+
+		.chat-box {
+			height: 50%;
+			width: 30%;
+			position: absolute;
+			left: 69%;
+			border-color: gray;
+			border-style: solid;
+			border-width: 2px;
+			z-index: 1;
+			background: rgb(25, 25, 25);
+		}
+
+		.chat-area {
+			width: 95%;
+			height: 89%;
+			margin: 10px;
+			display: flex;
+			flex-direction: column-reverse;
+		}
+
+		.chat-area p {
+			color: whitesmoke;
+			font-family: monospace;
+			margin: 3px;
+		}
+
+		#chat-input {
+			margin-left: 10px;
+			width: 90%;
+			background-color: rgb(51, 51, 51);
+			border-color: gray;
+			border-width: 2px;
+			border-style: solid;
+			height: 1.5em;
+			color: whitesmoke;
+			font-family: monospace;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="chat-box">
+		<div class="chat-area">
+			<p id="start"></p>
+		</div>
+		<input type="text" id="chat-input">
+	</div>
+</body>
+
+</html>

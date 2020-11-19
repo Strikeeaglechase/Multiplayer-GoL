@@ -1,0 +1,9 @@
+{
+	"compilerOptions": {
+		"watch": true,
+		"target": "ES6",
+		"lib": ["DOM"],
+		"moduleResolution": "node",
+		"allowSyntheticDefaultImports": true
+	}
+}
