@@ -33,6 +33,7 @@
 			margin: 10px;
 			display: flex;
 			flex-direction: column-reverse;
+			overflow: hidden;
 		}
 
 		.chat-area p {
@@ -57,8 +58,8 @@
 
 <body>
 	<div class="chat-box">
-		<div class="chat-area">
-			<p id="start"></p>
+		<div class="chat-area" id="chat-text">
+			<p>Type /name to start!</p>
 		</div>
 		<input type="text" id="chat-input">
 	</div>

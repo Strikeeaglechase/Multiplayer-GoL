@@ -9,7 +9,7 @@ interface Client {
 	dead: boolean;
 	id: string;
 }
-type NetworkEvent = "heartbeat" | "assignId" | GameEvents;
+type NetworkEvent = "heartbeat" | "assignId" | "ping" | GameEvents;
 interface WebsocketMessage {
 	event: NetworkEvent;
 	[propName: string]: any;
@@ -68,6 +68,9 @@ class WebsocketServer {
 			switch (data.event) {
 				case "heartbeat":
 					client.lastPing = Date.now();
+					break;
+				case "ping":
+					client.socket.send(encode({ event: "ping", time: data.time }));
 					break;
 				default:
 					// console.log(`Unknown packet type: ${data.event}`);

@@ -1,5 +1,6 @@
 import { App } from "./app";
 import { WebsocketMessage } from "../WebsocketServer";
+import { commands, CommandReturn } from "./commands.js";
 
 function encode(data: WebsocketMessage): string {
 	return JSON.stringify(data);
@@ -18,6 +19,8 @@ class Network {
 	socket: WebSocket;
 	isHost = false;
 	id: string;
+	name: string;
+	pingCallback: () => void;
 	constructor(app: App) {
 		this.app = app;
 	}
@@ -45,6 +48,14 @@ class Network {
 					this.id = data.id;
 					console.log(`We now have the ID of ${this.id}`);
 					break;
+				case "ping":
+					if (this.pingCallback) {
+						this.pingCallback();
+					}
+					break;
+				case "chat":
+					this.addMsgToChat(data.msg);
+					break;
 				case "setHost":
 					if (data.hostId == this.id) {
 						console.log(`We are the new host`);
@@ -53,8 +64,41 @@ class Network {
 						this.isHost = false;
 						console.log(`There is a new host: ${data.hostId}`);
 					}
+					break;
 			}
 		});
 	}
+	async ping() {
+		const startTime = Date.now();
+		this.socket.send(encode({ event: "ping", time: startTime }));
+		await new Promise<void>(res => {
+			this.pingCallback = res;
+		});
+		return Date.now() - startTime;
+	}
+	addMsgToChat(text: string, color?: string) {
+		const newElm = document.createElement("p");
+		newElm.innerText = text;
+		if (color) newElm.style.color = color;
+		const chatBox = document.getElementById("chat-text");
+		chatBox.insertBefore(newElm, chatBox.children[0]);
+	}
+	async handleUserCommand(msg: string) {
+		const args = msg.substring(1).split(" ");
+		const command = commands.find(c => c.name == args[0]);
+		if (command) {
+			const ret: CommandReturn = await command.exec.call(this, args);
+			this.addMsgToChat(ret.msg, ret.color);
+		} else {
+			this.addMsgToChat(`Unknown command "${args[0]}"`, "#ff0000")
+		}
+	}
+	handleUserMsg(msg: string) {
+		if (msg[0] == "/") {
+			this.handleUserCommand(msg);
+		} else {
+			this.socket.send(encode({ event: "chat", msg: msg }));
+		}
+	}
 }
-export { Network };
+export { Network, encode, decode };

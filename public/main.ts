@@ -24,7 +24,8 @@ function init() {
 	const chatInput = <HTMLInputElement>document.getElementById("chat-input");
 	chatInput.addEventListener("keydown", (e) => {
 		if (e.key === 'Enter') {
-			console.log(chatInput.value);
+			network.handleUserMsg(chatInput.value);
+			chatInput.value = "";
 		}
 	});
 	run();

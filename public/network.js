@@ -1,3 +1,13 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+import { commands } from "./commands.js";
 function encode(data) {
     return JSON.stringify(data);
 }
@@ -39,6 +49,14 @@ class Network {
                     this.id = data.id;
                     console.log(`We now have the ID of ${this.id}`);
                     break;
+                case "ping":
+                    if (this.pingCallback) {
+                        this.pingCallback();
+                    }
+                    break;
+                case "chat":
+                    this.addMsgToChat(data.msg);
+                    break;
                 case "setHost":
                     if (data.hostId == this.id) {
                         console.log(`We are the new host`);
@@ -48,8 +66,48 @@ class Network {
                         this.isHost = false;
                         console.log(`There is a new host: ${data.hostId}`);
                     }
+                    break;
             }
         });
     }
+    ping() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const startTime = Date.now();
+            this.socket.send(encode({ event: "ping", time: startTime }));
+            yield new Promise(res => {
+                this.pingCallback = res;
+            });
+            return Date.now() - startTime;
+        });
+    }
+    addMsgToChat(text, color) {
+        const newElm = document.createElement("p");
+        newElm.innerText = text;
+        if (color)
+            newElm.style.color = color;
+        const chatBox = document.getElementById("chat-text");
+        chatBox.insertBefore(newElm, chatBox.children[0]);
+    }
+    handleUserCommand(msg) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const args = msg.substring(1).split(" ");
+            const command = commands.find(c => c.name == args[0]);
+            if (command) {
+                const ret = yield command.exec.call(this, args);
+                this.addMsgToChat(ret.msg, ret.color);
+            }
+            else {
+                this.addMsgToChat(`Unknown command "${args[0]}"`, "#ff0000");
+            }
+        });
+    }
+    handleUserMsg(msg) {
+        if (msg[0] == "/") {
+            this.handleUserCommand(msg);
+        }
+        else {
+            this.socket.send(encode({ event: "chat", msg: msg }));
+        }
+    }
 }
-export { Network };
+export { Network, encode, decode };

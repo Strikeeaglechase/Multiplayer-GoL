@@ -45,6 +45,9 @@ class WebsocketServer {
                 case "heartbeat":
                     client.lastPing = Date.now();
                     break;
+                case "ping":
+                    client.socket.send(encode({ event: "ping", time: data.time }));
+                    break;
                 default:
                     // console.log(`Unknown packet type: ${data.event}`);
                     self.emit("message", client, data);
