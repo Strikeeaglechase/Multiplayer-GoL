@@ -13,6 +13,7 @@ function decode(data: MessageEvent): WebsocketMessage {
 		console.log(`Error decoding network packet: ${data}`);
 	}
 }
+const SERVER_COLOR = "#0064f0";
 
 class Network {
 	app: App;
@@ -54,16 +55,20 @@ class Network {
 					}
 					break;
 				case "chat":
-					this.addMsgToChat(data.msg);
+					this.addMsgToChat(data.msg, data.color);
 					break;
 				case "setHost":
 					if (data.hostId == this.id) {
 						console.log(`We are the new host`);
 						this.isHost = true;
+						this.addMsgToChat(`Server: You are now the host`, SERVER_COLOR)
 					} else {
 						this.isHost = false;
 						console.log(`There is a new host: ${data.hostId}`);
 					}
+					break;
+				case "game":
+					this.app.loadServerCells(data.state.cells);
 					break;
 			}
 		});

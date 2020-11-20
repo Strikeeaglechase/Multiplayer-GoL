@@ -1,3 +1,4 @@
+import { Cell as ServerCell } from "../app.js";
 interface Color {
 	r: number;
 	g: number;
@@ -12,28 +13,18 @@ interface Rules {
 	dead: [CellState, CellState, CellState, CellState, CellState, CellState, CellState, CellState, CellState]
 }
 
-interface ColorLookup {
-	count: number;
-	color: Color;
-	colorInt: number;
-}
-
 interface Cell {
 	state: CellState;
-	nextState: CellState;
-	neighbours: Cell[];
 	color: Color;
-	nextColor: Color;
+	ownerId: string;
+	next?: Cell;
+	neighbours?: Cell[];
 }
 
 interface AppOptions {
 	size: number;
 	cellSize: number;
 	canvas?: HTMLCanvasElement;
-}
-
-function encodeColor(color: Color): number {
-	return (color.r << 16) | (color.g << 8) | (color.b << 0)
 }
 
 const RULES: Rules = {
@@ -66,10 +57,14 @@ class App {
 			for (let j = 0; j < this.size; j++) {
 				this.cells[i][j] = {
 					state: "dead",
-					nextState: "dead",
 					neighbours: [],
+					ownerId: "",
 					color: DEAD_COLOR,
-					nextColor: DEAD_COLOR
+					next: {
+						state: "dead",
+						ownerId: "",
+						color: DEAD_COLOR
+					}
 				}
 			}
 		}
@@ -85,6 +80,15 @@ class App {
 		window.addEventListener("mousemove", (e) => {
 			self.mouseX = e.clientX;
 			self.mouseY = e.clientY;
+		});
+	}
+	loadServerCells(cells: ServerCell[][]) {
+		cells.forEach((row, i) => {
+			row.forEach((cell, j) => {
+				this.cells[j][i].color = cell.color;
+				this.cells[j][i].ownerId = cell.ownerId;
+				this.cells[j][i].state = cell.state;
+			});
 		});
 	}
 	iterrate(handler: Function) {
@@ -113,33 +117,37 @@ class App {
 			const numNabs = cell.neighbours.reduce((acc, cur) => {
 				return acc + (cur.state == "alive" ? 1 : 0);
 			}, 0);
-			cell.nextState = this.rules[cell.state][numNabs];
+			// if (numNabs > 0) debugger;
+			cell.next.state = this.rules[cell.state][numNabs];
+			if (cell.next.state == "alive") cell.next.color = cell.color;
 			//Handle new cell condition for color mode
-			if (cell.nextState == "alive" && cell.state == "dead") {
-				const colorCounts: ColorLookup[] = [];
+			if (cell.next.state == "alive" && cell.state == "dead") {
+				const colorCounts: { id: string, color: Color, count: number }[] = [];
 				cell.neighbours.forEach(nabCell => {
 					if (nabCell.state == "alive") {
-						const colorInt = encodeColor(nabCell.color);
-						let counter = colorCounts.find(lookup => lookup.colorInt == colorInt);
+						let counter = colorCounts.find(lookup => lookup.id == nabCell.ownerId);
 						if (!counter) {
 							counter = {
 								count: 0,
 								color: nabCell.color,
-								colorInt: colorInt
+								id: nabCell.ownerId
 							}
 							colorCounts.push(counter);
 						}
 						counter.count++;
 					}
 				});
-				cell.nextColor = colorCounts.sort((a, b) => b.count - a.count)[0].color;
+				const mostCount = colorCounts.sort((a, b) => b.count - a.count)[0];
+				cell.next.color = mostCount.color;
+				cell.next.ownerId = mostCount.id;
 			}
 		});
 	}
 	setCellStates() {
 		this.iterrate((cell: Cell) => {
-			cell.state = cell.nextState;
-			cell.color = cell.nextColor;
+			cell.state = cell.next.state;
+			cell.color = cell.next.color;
+			cell.ownerId = cell.next.ownerId;
 		});
 	}
 	step() {
@@ -166,7 +174,7 @@ class App {
 			const subX = x + this.cellSize / 2 - subCellSize / 2;
 			const subY = y + this.cellSize / 2 - subCellSize / 2;
 			let fill: Color;
-			fill = cell.nextState == "alive" ? cell.nextColor : DEAD_COLOR;
+			fill = cell.next.state == "alive" ? cell.next.color : DEAD_COLOR;
 			this.rect(subX, subY, subCellSize, subCellSize, fill);
 		});
 	}
@@ -201,4 +209,4 @@ class App {
 		}
 	}
 }
-export { App }
+export { App, Cell };

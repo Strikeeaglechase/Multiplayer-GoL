@@ -1,3 +1,0 @@
-class Network {
-}
-export { Network };
