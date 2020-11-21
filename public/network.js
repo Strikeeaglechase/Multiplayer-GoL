@@ -24,6 +24,7 @@ class Network {
     constructor(app) {
         this.isHost = false;
         this.app = app;
+        this.app.network = this;
     }
     init() {
         this.socket = new WebSocket("ws://localhost:8090");
@@ -77,6 +78,10 @@ class Network {
                     break;
             }
         });
+    }
+    finishTurn() {
+        const cells = this.app.getServerCells();
+        this.socket.send(encode({ event: "game", cells: cells }));
     }
     ping() {
         return __awaiter(this, void 0, void 0, function* () {

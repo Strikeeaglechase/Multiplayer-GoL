@@ -1,4 +1,5 @@
-import { Player, GameState, GameConfig } from "../app.js";
+import { Player, GameState, GameConfig, Cell as ServerCell } from "../app.js";
+import { Network } from "./network.js";
 interface Color {
 	r: number;
 	g: number;
@@ -39,7 +40,11 @@ class App {
 	size: number;
 	ctx: CanvasRenderingContext2D;
 	cells: Cell[][];
+	network: Network;
 	players: Player[] = [];
+	isOurTurn: boolean;
+	hasTakenTurn: boolean;
+	turnAction: { x: number, y: number, oldColor: Color }
 	gameConfig: GameConfig = {
 		numSpawnPoints: 2,
 		cellSize: 25,
@@ -78,25 +83,52 @@ class App {
 	createHandlers() {
 		const self: App = this;
 		window.addEventListener("keydown", (e) => {
-			if (e.key == " ") {
-				self.step();
-				self.draw();
+			if (e.target == document.body && this.isOurTurn) {
+				if (e.key == " ") {
+					self.step();
+				} else if (e.key == "z" && this.hasTakenTurn) {
+					const cell = this.cells[this.turnAction.y][this.turnAction.x];
+					cell.state = cell.state == "alive" ? "dead" : "alive";
+					cell.color = this.turnAction.oldColor;
+					this.hasTakenTurn = false;
+				}
 			}
 		});
 		window.addEventListener("mousemove", (e) => {
 			self.mouseX = e.clientX;
 			self.mouseY = e.clientY;
 		});
+		window.addEventListener("mousedown", () => {
+			if (!this.isOurTurn || this.hasTakenTurn) return;
+			const mouse = this.getMouseCell();
+			if (!this.inBounds(mouse.x, mouse.y)) return;
+			this.hasTakenTurn = true;
+			const cell = this.cells[mouse.y][mouse.x];
+			const myColor = this.players.find(p => p.id == this.network.id).color;
+			cell.state = cell.state == "alive" ? "dead" : "alive";
+			this.turnAction = {
+				x: mouse.x,
+				y: mouse.y,
+				oldColor: cell.color
+			};
+			cell.color = myColor;
+		});
 	}
 	loadState(state: GameState) {
 		state.cells.forEach((row, i) => {
 			row.forEach((cell, j) => {
-				this.cells[j][i].color = cell.color;
-				this.cells[j][i].ownerId = cell.ownerId;
-				this.cells[j][i].state = cell.state;
+				this.cells[i][j].color = cell.color;
+				this.cells[i][j].ownerId = cell.ownerId;
+				this.cells[i][j].state = cell.state;
 			});
 		});
 		this.players = state.players;
+		if (state.currentTurn == this.network.id) {
+			this.network.addMsgToChat("It is now your turn");
+			this.isOurTurn = true;
+		} else {
+			this.isOurTurn = false;
+		}
 	}
 	loadConfig(config: GameConfig) {
 		this.gameConfig = config;
@@ -164,20 +196,37 @@ class App {
 			cell.ownerId = cell.next.ownerId;
 		});
 	}
+	getServerCells(): ServerCell[][] {
+		return this.cells.map(row => row.map(cell => {
+			return {
+				state: cell.state,
+				color: cell.color,
+				ownerId: cell.ownerId
+			}
+		}));
+	}
 	step() {
+		this.hasTakenTurn = false;
 		this.updateNextCellStates();
 		this.setCellStates();
+		this.isOurTurn = false;
+		this.network.finishTurn();
+	}
+	getMouseCell(): { x: number, y: number } {
+		return {
+			x: Math.floor(this.mouseX / (this.cellSize + CELL_BUFFER)),
+			y: Math.floor(this.mouseY / (this.cellSize + CELL_BUFFER))
+		}
 	}
 	draw() {
 		this.updateNextCellStates();
 		this.render();
 		this.renderNextStates();
 		this.showCurrentPlayers();
-		const cellXIdx = Math.floor(this.mouseX / (this.cellSize + CELL_BUFFER));
-		const cellYIdx = Math.floor(this.mouseY / (this.cellSize + CELL_BUFFER));
-		if (this.inBounds(cellXIdx, cellYIdx)) {
-			const x = cellXIdx * (this.cellSize + CELL_BUFFER);
-			const y = cellYIdx * (this.cellSize + CELL_BUFFER);
+		const mouse = this.getMouseCell();
+		if (this.inBounds(mouse.x, mouse.y)) {
+			const x = mouse.x * (this.cellSize + CELL_BUFFER);
+			const y = mouse.y * (this.cellSize + CELL_BUFFER);
 			this.rect(x, y, this.cellSize, this.cellSize, { r: 255, g: 255, b: 255, a: 0.25 });
 		}
 	}

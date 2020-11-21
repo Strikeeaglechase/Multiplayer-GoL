@@ -24,6 +24,7 @@ class Network {
 	pingCallback: () => void;
 	constructor(app: App) {
 		this.app = app;
+		this.app.network = this;
 	}
 	init() {
 		this.socket = new WebSocket("ws://localhost:8090");
@@ -75,6 +76,10 @@ class Network {
 					break;
 			}
 		});
+	}
+	finishTurn() {
+		const cells = this.app.getServerCells();
+		this.socket.send(encode({ event: "game", cells: cells }));
 	}
 	async ping() {
 		const startTime = Date.now();

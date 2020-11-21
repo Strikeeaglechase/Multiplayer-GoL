@@ -119,6 +119,33 @@ class App {
             this.sendMsg("Unable to start game\n" + e.message);
         }
     }
+    incrementTurn(setIdx) {
+        if (this.game.players.length < 2) {
+            console.log("Game ended due to lack of players");
+            this.sendMsg("Game ended due to lack of players");
+            this.game.started = false;
+            return;
+        }
+        let currentTurnIdx = -1;
+        if (setIdx === undefined) {
+            for (let i = 0; i < this.game.players.length; i++) {
+                if (this.game.players[i].id == this.game.currentTurn) {
+                    currentTurnIdx = i;
+                    break;
+                }
+            }
+        }
+        else {
+            currentTurnIdx = setIdx;
+        }
+        if (currentTurnIdx == -1) {
+            this.sendMsg(`An error has occured`);
+            console.log("Unable to resolve current turn player");
+        }
+        const newIdx = (currentTurnIdx + 1) >= this.game.players.length ? 0 : (currentTurnIdx + 1);
+        this.game.currentTurn = this.game.players[newIdx].id;
+        this.sendGameState();
+    }
     sendMsg(msg, user) {
         const packet = { event: "chat", msg: `Server: ${msg}`, color: SERVER_COLOR };
         if (user) {
@@ -166,6 +193,28 @@ class App {
             this.haveHost = false;
             this.findNewHost();
         }
+        let idx;
+        const player = this.game.players.find((p, i) => {
+            if (p.id == user.id) {
+                idx = i;
+                return true;
+            }
+        });
+        if (this.game.started && player) {
+            console.log(`${user.id} disconnected, was in game, removing player`);
+            this.game.players = this.game.players.filter(p => p.id != user.id);
+            this.game.cells.forEach(row => {
+                row.forEach(cell => {
+                    if (cell.ownerId == user.id) {
+                        cell.state = "dead";
+                    }
+                });
+            });
+            if (this.game.currentTurn == user.id) {
+                console.log(`User disconnected when it was their turn`);
+                this.incrementTurn(idx);
+            }
+        }
     }
     message(client, message) {
         const user = this.users.find(u => u.id == client.id);
@@ -202,6 +251,15 @@ class App {
                 });
                 this.sendMsg(`Game config has been updated to:\n${strs.join("\n")}`);
                 this.server.sendToAll({ event: "config", config: this.config });
+                break;
+            case "game":
+                if (user.id != this.game.currentTurn) {
+                    console.log(`${user.id}, ${user.name} attempted to send a game state without it being their turn`);
+                    return;
+                }
+                this.game.cells = message.cells;
+                this.incrementTurn();
+                this.sendGameState();
                 break;
         }
     }
