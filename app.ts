@@ -30,6 +30,7 @@ interface GameState {
 	players: Player[];
 	cells: Cell[][];
 	currentTurn: string;
+	started: boolean;
 }
 
 interface User {
@@ -58,7 +59,6 @@ class App {
 	haveHost = false;
 	config: GameConfig;
 	game: GameState;
-	cells: Cell[][];
 	constructor(server: WebsocketServer) {
 		this.server = server;
 		this.users = [];
@@ -66,6 +66,12 @@ class App {
 			numSpawnPoints: 10,
 			cellSize: 25,
 			gridSize: 25
+		};
+		this.game = {
+			cells: [],
+			currentTurn: "",
+			players: [],
+			started: false
 		}
 	}
 	init() {
@@ -74,11 +80,11 @@ class App {
 		this.server.on("message", this.message.bind(this));
 	}
 	initCells() {
-		this.cells = [];
+		this.game.cells = [];
 		for (let i = 0; i < this.config.gridSize; i++) {
-			this.cells[i] = [];
+			this.game.cells[i] = [];
 			for (let j = 0; j < this.config.gridSize; j++) {
-				this.cells[i][j] = {
+				this.game.cells[i][j] = {
 					state: "dead",
 					ownerId: "",
 					color: DEAD_COLOR
@@ -116,7 +122,7 @@ class App {
 						isValid = false;
 						continue;
 					}
-					const cell = this.cells[checkY][checkX];
+					const cell = this.game.cells[checkY][checkX];
 					if (cell.state == "alive") {
 						//Bad spawn area, there is an alive cell
 						isValid = false;
@@ -124,48 +130,65 @@ class App {
 				}
 			}
 			if (isValid) {
-
-				let offset = 1;
-				this.cells[y + offset][x + offset] = userCell;
-				this.cells[y + offset][x + offset + 1] = userCell;
-				this.cells[y + offset + 1][x + offset] = userCell;
-				this.cells[y + offset + 1][x + offset + 1] = userCell;
+				this.game.cells[y + 1][x + 1] = userCell;
+				this.game.cells[y + 1][x + 2] = userCell;
+				this.game.cells[y + 2][x + 1] = userCell;
+				this.game.cells[y + 2][x + 2] = userCell;
 				foundSpawns++;
 				attempts = 0; //Attempts is per spawn
 			}
 		}
 	}
 	initUser(user: User) {
+		if (!user.name) {
+			this.sendMsg("The game is starting, however as you have not yet set your name you will be a spectator for this round", user);
+			return;
+		};
 		user.color = createColor();
 		this.spawnUser(user);
+		this.game.players.push(this.userToPlayer(user));
 	}
 	startGame() {
 		try {
 			this.initCells();
+			this.game.players = [];
 			this.users.forEach(user => {
 				this.initUser(user);
 			});
+			if (this.game.players.length < 2) {
+				this.sendMsg("The game has too few players to begin (min: 2)");
+			}
+			this.game.currentTurn = this.game.players[0].id;
+			this.game.started = true;
 			this.sendGameState();
+			this.sendMsg("The game has started!");
 		} catch (e) {
 			console.log(`${e.name}: ${e.message}`);
-			this.server.sendToAll({ event: "chat", msg: "Server: Unable to start game", color: SERVER_COLOR });
+			this.sendMsg("Unable to start game\n" + e.message);
 		}
-
 	}
-	toPlayer(user: User): Player {
+	sendMsg(msg: string, user?: User) {
+		const packet: WebsocketMessage = { event: "chat", msg: `Server: ${msg}`, color: SERVER_COLOR };
+		if (user) {
+			this.server.sendToClient(packet, user.id);
+		} else {
+			this.server.sendToAll(packet);
+		}
+	}
+	userToPlayer(user: User): Player {
 		return {
 			name: user.name,
 			color: user.color,
 			id: user.id
 		}
 	}
-	sendGameState() {
-		const state: GameState = {
-			players: this.users.map(this.toPlayer),
-			cells: this.cells,
-			currentTurn: ""
+	sendGameState(user?: User) {
+		const packet: WebsocketMessage = { event: "game", state: this.game };
+		if (user) {
+			this.server.sendToClient(packet, user.id);
+		} else {
+			this.server.sendToAll(packet);
 		}
-		this.server.sendToAll({ event: "game", state: state });
 	}
 	connect(client: Client) {
 		const newUser: User = {
@@ -177,6 +200,7 @@ class App {
 		}
 		this.users.push(newUser);
 		if (!this.haveHost) this.findNewHost();
+		if (this.game.started) this.sendGameState(newUser);
 	}
 	disconnect(client: Client) {
 		const user = this.users.find(user => user.id == client.id);
@@ -226,4 +250,4 @@ class App {
 	}
 }
 type GameEvents = "setHost" | "setName" | "chat" | "game" | "start";
-export { App, GameEvents, Cell };
+export { App, GameEvents, Cell, GameState, Player };

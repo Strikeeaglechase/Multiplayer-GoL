@@ -1,4 +1,4 @@
-import { Cell as ServerCell } from "../app.js";
+import { Player, GameState } from "../app.js";
 interface Color {
 	r: number;
 	g: number;
@@ -39,6 +39,7 @@ class App {
 	size: number;
 	ctx: CanvasRenderingContext2D;
 	cells: Cell[][];
+	players: Player[] = [];
 	rules = RULES;
 	mouseX = 0;
 	mouseY = 0;
@@ -82,14 +83,15 @@ class App {
 			self.mouseY = e.clientY;
 		});
 	}
-	loadServerCells(cells: ServerCell[][]) {
-		cells.forEach((row, i) => {
+	loadState(state: GameState) {
+		state.cells.forEach((row, i) => {
 			row.forEach((cell, j) => {
 				this.cells[j][i].color = cell.color;
 				this.cells[j][i].ownerId = cell.ownerId;
 				this.cells[j][i].state = cell.state;
 			});
 		});
+		this.players = state.players;
 	}
 	iterrate(handler: Function) {
 		this.cells.forEach((row, yIdx) => {
@@ -158,6 +160,7 @@ class App {
 		this.updateNextCellStates();
 		this.render();
 		this.renderNextStates();
+		this.showCurrentPlayers();
 		const cellXIdx = Math.floor(this.mouseX / (this.cellSize + CELL_BUFFER));
 		const cellYIdx = Math.floor(this.mouseY / (this.cellSize + CELL_BUFFER));
 		if (this.inBounds(cellXIdx, cellYIdx)) {
@@ -165,6 +168,18 @@ class App {
 			const y = cellYIdx * (this.cellSize + CELL_BUFFER);
 			this.rect(x, y, this.cellSize, this.cellSize, { r: 255, g: 255, b: 255, a: 0.25 });
 		}
+	}
+	showCurrentPlayers() {
+		const startX = (this.size + 2) * (this.cellSize + CELL_BUFFER);
+		const startY = window.innerHeight - (this.cellSize * 2);
+		this.players.forEach((player, idx) => {
+			const x = startX;
+			const y = startY - idx * (this.cellSize + CELL_BUFFER);
+			this.rect(x, y, this.cellSize, this.cellSize, player.color);
+			this.ctx.fillStyle = "whitesmoke";
+			this.ctx.font = "18px monospace";
+			this.ctx.fillText(player.name, x + this.cellSize + 5, y + this.cellSize / 2 + 4);
+		});
 	}
 	renderNextStates() {
 		this.iterrate((cell: Cell, xIdx: number, yIdx: number) => {

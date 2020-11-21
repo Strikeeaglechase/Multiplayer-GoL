@@ -68,7 +68,7 @@ class Network {
 					}
 					break;
 				case "game":
-					this.app.loadServerCells(data.state.cells);
+					this.app.loadState(data.state);
 					break;
 			}
 		});
