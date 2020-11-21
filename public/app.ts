@@ -1,4 +1,4 @@
-import { Player, GameState } from "../app.js";
+import { Player, GameState, GameConfig } from "../app.js";
 interface Color {
 	r: number;
 	g: number;
@@ -40,6 +40,11 @@ class App {
 	ctx: CanvasRenderingContext2D;
 	cells: Cell[][];
 	players: Player[] = [];
+	gameConfig: GameConfig = {
+		numSpawnPoints: 2,
+		cellSize: 25,
+		gridSize: 25
+	};
 	rules = RULES;
 	mouseX = 0;
 	mouseY = 0;
@@ -48,8 +53,8 @@ class App {
 		this.cellSize = options.cellSize;
 		this.size = options.size;
 		this.initCells();
-		this.createHandlers();
 		this.initNabs();
+		this.createHandlers();
 	}
 	initCells() {
 		this.cells = [];
@@ -92,6 +97,13 @@ class App {
 			});
 		});
 		this.players = state.players;
+	}
+	loadConfig(config: GameConfig) {
+		this.gameConfig = config;
+		this.size = config.gridSize;
+		this.cellSize = config.cellSize;
+		this.initCells();
+		this.initNabs();
 	}
 	iterrate(handler: Function) {
 		this.cells.forEach((row, yIdx) => {

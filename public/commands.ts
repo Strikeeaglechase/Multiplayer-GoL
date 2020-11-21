@@ -2,7 +2,7 @@ import { encode } from "./network.js";
 interface Command {
 	name: string;
 	helpMsg: string;
-	exec: (args?: string[]) => CommandReturn | Promise<CommandReturn>;
+	exec: (args?: string[]) => CommandReturn | Promise<CommandReturn> | void;
 };
 interface CommandReturn {
 	msg: string;
@@ -45,6 +45,33 @@ const commands: Command[] = [
 			}
 			this.socket.send(encode({ event: "start" }));
 			return { msg: `Trying to start the game` };
+		}
+	},
+	{
+		name: "config",
+		helpMsg: "Changes/displays the config. /config [option] [newValue]",
+		exec: function (args) {
+			if (!this.isHost) {
+				return { msg: "You are not the lobby host", color: "#ff0000" }
+			}
+			const option = args[1];
+			const value = parseInt(args[2]);
+			const configOptions = Object.getOwnPropertyNames(this.app.gameConfig);
+			if (!option) {
+				const strs: string[] = [];
+				configOptions.forEach(optionName => {
+					strs.push(`${optionName}: ${this.app.gameConfig[optionName]}`);
+				});
+				return { msg: `Current game config:\n${strs.join("\n")}` };
+			} else {
+				if (configOptions.includes(option)) {
+					this.app.gameConfig[option] = value;
+					this.socket.send(encode({ event: "config", config: this.app.gameConfig }));
+					return;
+				} else {
+					return { msg: `The option "${option}" does not exist`, color: "#ff0000" }
+				}
+			}
 		}
 	}
 ];

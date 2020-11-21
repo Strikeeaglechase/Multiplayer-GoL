@@ -7,6 +7,11 @@ const DEAD_COLOR = { r: 51, g: 51, b: 51 };
 class App {
     constructor(options) {
         this.players = [];
+        this.gameConfig = {
+            numSpawnPoints: 2,
+            cellSize: 25,
+            gridSize: 25
+        };
         this.rules = RULES;
         this.mouseX = 0;
         this.mouseY = 0;
@@ -14,8 +19,8 @@ class App {
         this.cellSize = options.cellSize;
         this.size = options.size;
         this.initCells();
-        this.createHandlers();
         this.initNabs();
+        this.createHandlers();
     }
     initCells() {
         this.cells = [];
@@ -58,6 +63,13 @@ class App {
             });
         });
         this.players = state.players;
+    }
+    loadConfig(config) {
+        this.gameConfig = config;
+        this.size = config.gridSize;
+        this.cellSize = config.cellSize;
+        this.initCells();
+        this.initNabs();
     }
     iterrate(handler) {
         this.cells.forEach((row, yIdx) => {

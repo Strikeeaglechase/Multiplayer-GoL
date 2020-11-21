@@ -14,7 +14,7 @@ class App {
         this.server = server;
         this.users = [];
         this.config = {
-            numSpawnPoints: 10,
+            numSpawnPoints: 2,
             cellSize: 25,
             gridSize: 25
         };
@@ -107,6 +107,7 @@ class App {
             });
             if (this.game.players.length < 2) {
                 this.sendMsg("The game has too few players to begin (min: 2)");
+                return;
             }
             this.game.currentTurn = this.game.players[0].id;
             this.game.started = true;
@@ -152,6 +153,7 @@ class App {
             name: ""
         };
         this.users.push(newUser);
+        this.server.sendToClient({ event: "config", config: this.config }, newUser.id);
         if (!this.haveHost)
             this.findNewHost();
         if (this.game.started)
@@ -187,6 +189,19 @@ class App {
                     return;
                 }
                 this.startGame();
+                break;
+            case "config":
+                if (!user.isHost) {
+                    console.log(`${user.id} attempted to edit the game config despite not being host`);
+                    return;
+                }
+                this.config = message.config;
+                const strs = [];
+                Object.getOwnPropertyNames(this.config).forEach(optionName => {
+                    strs.push(`${optionName}: ${this.config[optionName]}`);
+                });
+                this.sendMsg(`Game config has been updated to:\n${strs.join("\n")}`);
+                this.server.sendToAll({ event: "config", config: this.config });
                 break;
         }
     }

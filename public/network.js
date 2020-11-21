@@ -72,6 +72,9 @@ class Network {
                 case "game":
                     this.app.loadState(data.state);
                     break;
+                case "config":
+                    this.app.loadConfig(data.config);
+                    break;
             }
         });
     }
@@ -99,7 +102,8 @@ class Network {
             const command = commands.find(c => c.name == args[0]);
             if (command) {
                 const ret = yield command.exec.call(this, args);
-                this.addMsgToChat(ret.msg, ret.color);
+                if (ret)
+                    this.addMsgToChat(ret.msg, ret.color);
             }
             else {
                 this.addMsgToChat(`Unknown command "${args[0]}"`, "#ff0000");
