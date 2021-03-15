@@ -27,7 +27,7 @@ class Network {
         this.app.network = this;
     }
     init() {
-        this.socket = new WebSocket("ws://gol-ws.isan.to");
+        this.socket = new WebSocket("wss://gol-ws.isan.to");
         this.socket.addEventListener("open", () => {
             console.log("Socket connected!");
         });
